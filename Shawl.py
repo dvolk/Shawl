@@ -2,12 +2,14 @@
 
 import uuid
 import logging
+import pathlib
+import time
 
 import gooey
 import paramiko
 import scp
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 class ScarfRun:
@@ -24,11 +26,14 @@ class ScarfRun:
         self.client.connect(hostname=host, username=username, password=password)
         self.scp = scp.SCPClient(self.client.get_transport())
         self.run_uuid = str(uuid.uuid4())
+        # create the run directory
         self.run_dir = f"runs/{self.run_uuid}/"
         self.client.exec_command(f"mkdir -p {self.run_dir}")
+        # avoid scp's "is a directory" error
+        time.sleep(1)
 
     def run(self, cmd):
-        """Run a command in the run dir."""
+        """Run a command in the run dir and return code and output."""
         cmd = f"cd {self.run_dir} && {cmd}"
         logging.info(f"running {cmd}")
         stdin, stdout, stderr = self.client.exec_command(cmd)
@@ -54,12 +59,48 @@ class ScarfRun:
         self.scp.get(remote_path=self.run_dir, recursive=True, local_path=output_dir)
 
 
-def run(scarf_host, scarf_username, scarf_password, files_in, output_dir):
+def run(
+    scarf_host, scarf_username, scarf_password, slurm_job_file, files_in, output_dir
+):
     """Send files to scarf, run it and then fetch output files."""
     logging.info("start")
+
+    # find the job file:
+    # either the user picked something in the filechooser, or we can find it by looking at
+    # the input directory and find a file ending with '.job'. If it doesn't find it or
+    # if it finds more than one file, then report an error
+    job_file = ""
+    if slurm_job_file:
+        # if the user selects a file with the filechooser, then we need to remove the path
+        job_file = pathlib.Path(slurm_job_file).name
+    else:
+        indir = pathlib.Path(files_in[0]).parent
+        slurm_job_files = list(indir.glob("*.job"))
+        logging.info(slurm_job_files)
+        if not slurm_job_files:
+            raise Exception(
+                f"No job file found in {indir}. Please choose the job file you want to use."
+            )
+        if len(slurm_job_files) > 1:
+            raise Exception(
+                f"More than 1 job file found in {indir}. Please choose the job file you want to use."
+            )
+        job_file = pathlib.Path(slurm_job_files[0]).name
+
+    # run stuff:
+    # 1. send input files to runs/<uuid>
+    # 2. run sbatch on selected job file
+    # 3. copy the run directory back to the output_dir
     s = ScarfRun(scarf_host, scarf_username, scarf_password)
     s.send(files_in)
-    s.run("sbatch -W namd.job")
+    time.sleep(1)
+    code, stdout, stderr = s.run(f"sbatch -W {job_file}")
+    if not code == 0:
+        logging.error("stdout:")
+        logging.error(stdout)
+        logging.error("stderr:")
+        logging.error(stderr)
+        raise Exception("sbatch failed.")
     s.receive_run_dir(output_dir)
 
 
@@ -90,6 +131,12 @@ def main():
         nargs="*",
     )
     parser.add_argument(
+        "--slurm_job_file",
+        help="SLURM job file",
+        widget="FileChooser",
+        default="",
+    )
+    parser.add_argument(
         "output_dir",
         help="Output directory",
         widget="DirChooser",
@@ -100,6 +147,7 @@ def main():
         args.scarf_host,
         args.scarf_username,
         args.scarf_password,
+        args.slurm_job_file,
         args.input_files,
         args.output_dir,
     )
