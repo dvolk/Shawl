@@ -17,7 +17,7 @@ class ScarfRun:
     Remotely the commands are all relative to run_dir - runs/<uuid>.
     """
 
-    def __init__(self, host, username):
+    def __init__(self, host, username, password):
         """Initialize connection and create run dir."""
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -54,10 +54,10 @@ class ScarfRun:
         self.scp.get(remote_path=self.run_dir, recursive=True, local_path=output_dir)
 
 
-def run(scarf_host, scarf_username, files_in, output_dir):
+def run(scarf_host, scarf_username, scarf_password, files_in, output_dir):
     """Send files to scarf, run it and then fetch output files."""
     logging.info("start")
-    s = ScarfRun(scarf_host, scarf_username)
+    s = ScarfRun(scarf_host, scarf_username, scarf_password)
     s.send(files_in)
     s.run("sbatch -W namd.job")
     s.receive_run_dir(output_dir)
@@ -79,6 +79,11 @@ def main():
         default="scarf1123",
     )
     parser.add_argument(
+        "--scarf_password",
+        help="Scarf SSH password",
+        default="",
+    )
+    parser.add_argument(
         "input_files",
         help="Input files",
         widget="MultiFileChooser",
@@ -94,6 +99,7 @@ def main():
     run(
         args.scarf_host,
         args.scarf_username,
+        args.scarf_password,
         args.input_files,
         args.output_dir,
     )
