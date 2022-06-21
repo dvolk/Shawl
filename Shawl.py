@@ -31,7 +31,17 @@ class ScarfRun:
         """Run a command in the run dir."""
         cmd = f"cd {self.run_dir} && {cmd}"
         logging.info(f"running {cmd}")
-        return self.client.exec_command(cmd)
+        stdin, stdout, stderr = self.client.exec_command(cmd)
+        stdout_str, stderr_str = stdout.read(), stderr.read()
+        retcode = stdout.channel.recv_exit_status()
+        logging.debug(f'command "{cmd}" finished')
+        logging.debug(f"command retcode: {retcode}")
+        logging.debug(f"command stdout: {stdout_str}")
+        logging.debug(f"command stderr: {stderr_str}")
+        stdin.close()
+        stdout.close()
+        stderr.close()
+        return retcode, stdout_str, stderr_str
 
     def send(self, files):
         """Send files into the run dir."""
@@ -49,8 +59,7 @@ def run(scarf_host, scarf_username, files_in, output_dir):
     logging.info("start")
     s = ScarfRun(scarf_host, scarf_username)
     s.send(files_in)
-    s.run("cd ..; ls *")
-    s.run("srun sbatch.job")
+    s.run("sbatch -W namd.job")
     s.receive_run_dir(output_dir)
 
 
