@@ -103,6 +103,9 @@ def run(
         raise Exception("sbatch failed.")
     s.receive_run_dir(output_dir)
 
+    out_dir = output_dir + "/" + s.run_uuid
+    logging.info(f"The files are available in the directory {out_dir}")
+
 
 @gooey.Gooey()
 def main():
