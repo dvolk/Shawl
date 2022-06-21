@@ -21,7 +21,7 @@ class ScarfRun:
         """Initialize connection and create run dir."""
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.client.connect(hostname=host, username=username)
+        self.client.connect(hostname=host, username=username, password=password)
         self.scp = scp.SCPClient(self.client.get_transport())
         self.run_uuid = str(uuid.uuid4())
         self.run_dir = f"runs/{self.run_uuid}/"
