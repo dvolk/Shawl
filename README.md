@@ -2,6 +2,8 @@
 
 Shawl is a GUI utility to run slurm runs on scarf
 
+<img src="scr.png">
+
 ## Installation
 
     git clone https://github.com/dvolk/Shawl
