@@ -1,8 +1,6 @@
 """Namd run daaas scarf demo."""
 
 import logging
-import pathlib
-import time
 
 import gooey
 

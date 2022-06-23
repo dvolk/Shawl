@@ -1,11 +1,12 @@
 """Class to run commands and send/receive files relative to a UUID-ed run directory."""
 
-import paramiko
 import logging
-import time
-import scp
-import uuid
 import pathlib
+import time
+import uuid
+
+import paramiko
+import scp
 
 
 class ScarfRun:
